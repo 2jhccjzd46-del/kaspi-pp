@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Мой Kaspi</title>
+    <style>
+        :root {
+            --kaspi-red: #E41E31;
+            --kaspi-gray: #F4F5F7;
+            --text-dark: #1A1A1A;
+            --text-gray: #7A7A7A;
+            --white: #FFFFFF;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: var(--white); color: var(--text-dark); overflow: hidden; height: 100vh; width: 100vw; }
+        
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--white); display: none; flex-direction: column;
+            overflow-y: auto; padding-bottom: 80px; z-index: 1;
+        }
+        .screen.active { display: flex; }
+        
+        /* Стили для картинок-фонов */
+        .bg-image {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; z-index: 0; opacity: 0.95;
+        }
+        .content-overlay {
+            position: relative; z-index: 10; width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+        }
+
+        /* Пин-код */
+        #pin-screen { justify-content: center; align-items: center; background: var(--white); z-index: 100; }
+        .pin-dots { display: flex; gap: 15px; margin-bottom: 30px; position: relative; z-index: 20; }
+        .pin-dot { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--kaspi-red); background: rgba(255,255,255,0.8); }
+        .pin-dot.filled { background: var(--kaspi-red); }
+        .pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; position: relative; z-index: 20; }
+        .pin-btn {
+            width: 70px; height: 70px; border-radius: 50%; border: none;
+            background: rgba(244, 245, 247, 0.9); font-size: 24px; font-weight: 500;
+            cursor: pointer; display: flex; justify-content: center; align-items: center;
+        }
+        .pin-btn:active { background: #ddd; }
+
+        /* Общие стили */
+        .header { padding: 20px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.8); }
+        .header h1 { font-size: 20px; }
+        .back-btn { font-size: 24px; cursor: pointer; padding: 10px; background: rgba(255,255,255,0.8); border-radius: 50%; }
+        
+        .btn {
+            background: var(--kaspi-red); color: white; border: none;
+            padding: 15px; border-radius: 10px; font-size: 16px; font-weight: 600;
+            width: 100%; cursor: pointer; margin-top: 10px; position: relative; z-index: 20;
+        }
+        .btn:active { opacity: 0.8; }
+        
+        .input-group { margin-bottom: 15px; padding: 0 20px; position: relative; z-index: 20; }
+        .input-group label { display: block; font-size: 14px; color: var(--text-gray); margin-bottom: 5px; background: rgba(255,255,255,0.7); display: inline-block; padding: 2px 5px; border-radius: 4px;}
+        .input-group input {
+            width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;
+            background: rgba(255,255,255,0.9);
+        }
+        
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: rgba(255,255,255,0.95); border-top: 1px solid #eee;
+            display: flex; justify-content: space-around; padding: 10px 0; z-index: 50;
+        }
+        .nav-item { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: var(--text-gray); cursor: pointer; }
+        .nav-item.active { color: var(--kaspi-red); }
+        .nav-item span { font-size: 20px; margin-bottom: 2px; }
+
+        .doc-tabs { display: flex; margin: 20px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; position: relative; z-index: 20; background: white;}
+        .doc-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; background: var(--white); }
+        .doc-tab.active { background: var(--kaspi-red); color: white; }
+
+        .file-upload {
+            margin: 20px; padding: 20px; border: 2px dashed #ddd; border-radius: 10px;
+            text-align: center; color: var(--text-gray); cursor: pointer; background: rgba(255,255,255,0.8);
+            position: relative; z-index: 20;
+        }
+        .file-upload input { display: none; }
+        .file-preview { max-width: 100%; max-height: 200px; margin-top: 10px; border-radius: 8px; }
+
+        .history-item {
+            display: flex; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid #eee;
+            background: rgba(255,255,255,0.8); position: relative; z-index: 20;
+        }
+        .hidden { display: none !important; }
+        .contact-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; background: rgba(255,255,255,0.9); position: relative; z-index: 20; }
+    </style>
+</head>
+<body>
+
+    <!-- ЭКРАН 1: ПИН-КОД (IMG_9364) -->
+    <div id="pin-screen" class="screen active">
+        <img src="IMG_9364.jpeg" class="bg-image" alt="Pin Background" onerror="this.style.display='none'">
+        
+        <div class="content-overlay" style="justify-content: center; align-items: center;">
+            <div class="pin-dots">
+                <div class="pin-dot" id="dot1"></div><div class="pin-dot" id="dot2"></div>
+                <div class="pin-dot" id="dot3"></div><div class="pin-dot" id="dot4"></div>
+            </div>
+            <div class="pin-pad">
+                <button class="pin-btn" onclick="enterPin(1)">1</button>
+                <button class="pin-btn" onclick="enterPin(2)">2</button>
+                <button class="pin-btn" onclick="enterPin(3)">3</button>
+                <button class="pin-btn" onclick="enterPin(4)">4</button>
+                <button class="pin-btn" onclick="enterPin(5)">5</button>
+                <button class="pin-btn" onclick="enterPin(6)">6</button>
+                <button class="pin-btn" onclick="enterPin(7)">7</button>
+                <button class="pin-btn" onclick="enterPin(8)">8</button>
+                <button class="pin-btn" onclick="enterPin(9)">9</button>
+                <button class="pin-btn" onclick="clearPin()">X</button>
+                <button class="pin-btn" onclick="enterPin(0)">0</button>
+                <button class="pin-btn" onclick="deletePin()">⌫</button>
+            </div>
+            <p style="margin-top: 20px; color: #999; font-size: 14px; background: white; padding: 5px; border-radius: 5px;">Введите код (8514)</p>
+        </div>
+    </div>
+
+    <!-- ЭКРАН 2: ГЛАВНОЕ МЕНЮ (IMG_9326) -->
+    <div id="main-screen" class="screen">
+        <img src="IMG_9326.png" class="bg-image" alt="Main Background" onerror="this.style.display='none'">
+        
+        <div class="content-overlay">
+            <div class="header">
+                <h1>Мой Kaspi</h1>
+                <div style="font-size: 20px;">👤</div>
+            </div>
+            
+            <!-- Невидимые кнопки поверх картинки для навигации -->
+            <!-- Нажимайте на области, где на картинке нарисованы кнопки -->
+            <div style="position: absolute; top: 30%; left: 10%; width: 20%; height: 15%; cursor: pointer;" onclick="showScreen('my-bank-screen')"></div>
+            <div style="position: absolute; top: 30%; left: 40%; width: 20%; height: 15%; cursor: pointer;" onclick="showScreen('transfers-screen')"></div>
+            <div style="position: absolute; top: 30%; left: 70%; width: 20%; height: 15%; cursor: pointer;" onclick="showGovServices()"></div>
+            
+            <div class="bottom-nav">
+                <div class="nav-item active"><span>🏠</span> Главная</div>
+                <div class="nav-item"><span>📷</span> QR</div>
+                <div class="nav-item"><span>💬</span> Сообщения</div>
+                <div class="nav-item"><span>⚙️</span> Сервисы</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН 3-4: МОЙ БАНК (IMG_9354) -->
+    <div id="my-bank-screen" class="screen">
+        <img src="IMG_9354.jpeg" class="bg-image" alt="Bank Background" onerror="this.style.display='none'">
+        <div class="content-overlay">
+            <div class="header">
+                <div class="back-btn" onclick="showScreen('main-screen')">←</div>
+                <h1>Мой Банк</h1>
+                <div></div>
+            </div>
+            
+            <div style="padding: 20px; position: relative; z-index: 20; margin-top: 50%;">
+                <div class="input-group">
+                    <label style="background: white;">Изменить сумму на счете</label>
+                    <input type="number" id="input-amount" placeholder="Например: 50000" oninput="updateBalance(this.value)">
+                </div>
+                <div class="input-group">
+                    <label style="background: white;">Имя владельца</label>
+                    <input type="text" id="input-name" placeholder="Введите имя">
+                </div>
+                <button class="btn" onclick="showScreen('main-screen')">Назад</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН 5-6: ГОСУСЛУГИ (IMG_9356 - загрузка, IMG_9357 - меню) -->
+    <div id="gov-loading" class="screen" style="justify-content: center; align-items: center;">
+        <img src="IMG_9356.webp" class="bg-image" alt="Gov Load" onerror="this.style.display='none'">
+        <div class="content-overlay" style="justify-content: center; align-items: center;">
+            <h2>eGov + Kaspi</h2>
+            <p style="color: #999; margin-top: 10px;">Загрузка...</p>
+        </div>
+    </div>
+
+    <div id="gov-menu-screen" class="screen">
+        <img src="IMG_9357.webp" class="bg-image" alt="Gov Menu" onerror="this.style.display='none'">
+        <div class="content-overlay">
+            <div class="header"><div class="back-btn" onclick="showScreen('main-screen')">←</div><h1>Госуслуги</h1><div></div></div>
+            <!-- Кнопка Удостоверение (нажмите на область, где на картинке написано "Удостоверение личности") -->
+            <div style="position: absolute; top: 30%; left: 10%; width: 30%; height: 20%; cursor: pointer;" onclick="showScreen('gov-id-screen')"></div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН 7-8: УДОСТОВЕРЕНИЕ (IMG_9358 - документ, IMG_9359 - реквизиты) -->
+    <div id="gov-id-screen" class="screen">
+        <img src="IMG_9358.jpeg" class="bg-image" id="id-bg" alt="ID Background" onerror="this.style.display='none'">
+        <div class="content-overlay">
+            <div class="header"><div class="back-btn" onclick="showScreen('gov-menu-screen')">←</div><h1>Удостоверение</h1><div></div></div>
+            
+            <div class="doc-tabs">
+                <div class="doc-tab active" onclick="switchTab('doc')">Документ</div>
+                <div class="doc-tab" onclick="switchTab('req')">Реквизиты</div>
+            </div>
+
+            <div id="tab-doc" style="padding: 20px;">
+                <div class="file-upload" onclick="document.getElementById('file-input').click()">
+                    <span id="file-label">Выбрать файл</span>
+                    <input type="file" id="file-input" accept="image/*" onchange="previewFile(event)">
+                    <img id="file-preview" class="file-preview hidden" src="" alt="Превью">
+                </div>
+                <button class="btn" onclick="alert('Документ предъявлен!')">Предъявить документ</button>
+            </div>
+
+            <div id="tab-req" class="hidden" style="padding: 20px;">
+                <div class="input-group"><label>ИИН</label><input type="text" placeholder="Введите ИИН"></div>
+                <div class="input-group"><label>Номер паспорта</label><input type="text" placeholder="Введите номер"></div>
+                <div class="input-group"><label>Дата рождения</label><input type="date"></div>
+                <button class="btn" onclick="alert('Сохранено!')">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН 9-11: ПЕРЕВОДЫ (IMG_9360 - меню, IMG_9361 - клиент, IMG_9363 - история) -->
+    <div id="transfers-screen" class="screen">
+        <img src="IMG_9360.jpeg" class="bg-image" id="trans-bg" alt="Transfers Background" onerror="this.style.display='none'">
+        <div class="content-overlay">
+            <div class="header"><div class="back-btn" onclick="showScreen('main-screen')">←</div><h1>Переводы</h1><div></div></div>
+            
+            <div class="doc-tabs" style="margin: 10px 20px;">
+                <div class="doc-tab active" onclick="switchTransferTab('new')">Новый</div>
+                <div class="doc-tab" onclick="switchTransferTab('history')">История</div>
+            </div>
+
+            <div id="transfer-new" style="padding: 20px;">
+                <div class="input-group">
+                    <label style="background: white;">Номер телефона или имя</label>
+                    <input type="text" id="search-contact" placeholder="Введите имя" oninput="searchContacts()">
+                </div>
+                <div id="contacts-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; position: relative; z-index: 20;">
+                    <div class="contact-item" onclick="selectContact('Айдар')">Айдар</div>
+                    <div class="contact-item" onclick="selectContact('Мария')">Мария</div>
+                </div>
+                <div class="input-group" style="margin-top: 15px;">
+                    <label style="background: white;">Сумма</label>
+                    <input type="number" id="transfer-amount" placeholder="0 ₸">
+                </div>
+                <button class="btn" onclick="makeTransfer()">Перевести</button>
+            </div>
+
+            <div id="transfer-history" class="hidden" style="padding: 20px;">
+                <div class="input-group"><label style="background: white;">Дата</label><input type="date"></div>
+                <div class="input-group"><label style="background: white;">Сумма</label><input type="number" placeholder="0 ₸"></div>
+                <div class="file-upload" onclick="document.getElementById('history-file').click()">
+                    <span>Загрузить чек</span>
+                    <input type="file" id="history-file" accept="image/*">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPin = "";
+        const correctPin = "8514";
+        
+        function enterPin(num) {
+            if (currentPin.length < 4) currentPin += num;
+            updateDots();
+            if (currentPin.length === 4) checkPin();
+        }
+        function deletePin() { if (currentPin.length > 0) { currentPin = currentPin.slice(0, -1); updateDots(); } }
+        function clearPin() { currentPin = ""; updateDots(); }
+        function updateDots() {
+            for (let i = 1; i <= 4; i++) {
+                const dot = document.getElementById(`dot${i}`);
+                if (i <= currentPin.length) dot.classList.add('filled');
+                else dot.classList.remove('filled');
+            }
+        }
+        function checkPin() {
+            if (currentPin === correctPin) {
+                showScreen('main-screen'); currentPin = ""; updateDots();
+            } else {
+                alert("Неверный пин-код! (8514)"); clearPin();
+            }
+        }
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+        function updateBalance(val) {
+            // Просто для примера
+        }
+        function showGovServices() {
+            showScreen('gov-loading');
+            setTimeout(() => { showScreen('gov-menu-screen'); }, 1500);
+        }
+        function switchTab(tab) {
+            document.querySelectorAll('.doc-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            const bg = document.getElementById('id-bg');
+            
+            if (tab === 'doc') {
+                document.getElementById('tab-doc').classList.remove('hidden');
+                document.getElementById('tab-req').classList.add('hidden');
+                if(bg) bg.src = 'IMG_9358.jpeg'; // Документ
+            } else {
+                document.getElementById('tab-doc').classList.add('hidden');
+                document.getElementById('tab-req').classList.remove('hidden');
+                if(bg) bg.src = 'IMG_9359.jpeg'; // Реквизиты
+            }
+        }
+        function previewFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('file-preview').src = e.target.result;
+                    document.getElementById('file-preview').classList.remove('hidden');
+                    document.getElementById('file-label').innerText = "Файл выбран";
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+        function switchTransferTab(tab) {
+            document.querySelectorAll('#transfers-screen .doc-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            const bg = document.getElementById('trans-bg');
+            
+            if (tab === 'new') {
+                document.getElementById('transfer-new').classList.remove('hidden');
+                document.getElementById('transfer-history').classList.add('hidden');
+                if(bg) bg.src = 'IMG_9361.jpeg'; // Перевод клиенту
+            } else {
+                document.getElementById('transfer-new').classList.add('hidden');
+                document.getElementById('transfer-history').classList.remove('hidden');
+                if(bg) bg.src = 'IMG_9363.png'; // История
+            }
+        }
+        function searchContacts() {
+            const query = document.getElementById('search-contact').value.toLowerCase();
+            document.querySelectorAll('#contacts-list .contact-item').forEach(item => {
+                item.style.display = item.innerText.toLowerCase().includes(query) ? 'block' : 'none';
+            });
+        }
+        function selectContact(name) {
+            document.getElementById('search-contact').value = name;
+            document.getElementById('contacts-list').style.display = 'none';
+        }
+        function makeTransfer() {
+            alert("Перевод выполнен!");
+        }
+    </script>
+</body>
+</html>
